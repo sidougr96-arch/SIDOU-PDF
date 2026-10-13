@@ -1,0 +1,444 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SIDOU PDF</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#faf7f0;--card:#fff;--ink:#111;--mut:#666;--gold:#b8923a;--bd:#e4dcc8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c0c0c;--card:#171717;--ink:#f5f1e6;--mut:#a8a08c;--bd:#33301f}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI",Tahoma,sans-serif}
+header{background:#0c0c0c;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--gold)}
+.logo{font-weight:800;letter-spacing:.08em;font-size:1.3rem}.logo b{color:#d4af37}
+main{max-width:860px;margin:0 auto;padding:16px}
+button,select,input{font:inherit}
+.btn{min-height:44px;padding:8px 18px;border-radius:8px;border:1px solid var(--gold);background:var(--gold);color:#111;font-weight:700;cursor:pointer}
+.btn.sec{background:transparent;color:var(--ink)}.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,select:focus-visible,input:focus-visible,.drop:focus-visible{outline:3px solid #d4af37;outline-offset:2px}
+.lang{background:transparent;color:#fff;border-color:#d4af37;min-height:36px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}nav .btn{flex:1 1 140px}
+nav .btn[aria-selected=true]{background:#0c0c0c;color:#d4af37;border-color:#0c0c0c}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;box-shadow:0 1px 6px #0001}
+.drop{border:2px dashed var(--gold);border-radius:12px;padding:28px 12px;text-align:center;cursor:pointer;margin:12px 0}
+.drop.over{background:#d4af3722}
+ul{list-style:none;padding:0;margin:12px 0}li{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px}
+li img{width:44px;height:44px;object-fit:cover;border-radius:4px}li .n{flex:1;min-width:0;overflow-wrap:anywhere}
+li small{color:var(--mut);display:block}li button{min-width:40px;min-height:40px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:12px 0}label{display:flex;flex-direction:column;font-size:.85rem;color:var(--mut);gap:2px}
+select,input[type=text],input[type=number]{padding:8px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--ink);min-height:40px}
+#msg{margin-top:12px;padding:10px;border-radius:8px;min-height:1px}#msg.err{background:#fde8e8;color:#8a1111}#msg.ok{background:#e8f5e9;color:#145a1e}
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:12px}.res a{display:block;text-align:center;font-size:.8rem}.res img{width:100%;border:1px solid var(--bd)}
+footer{max-width:860px;margin:0 auto;padding:16px;color:var(--mut);font-size:.85rem}
+@media(prefers-reduced-motion:no-preference){.btn{transition:filter .15s}.btn:hover{filter:brightness(1.1)}}
+</style></head><body>
+<header><div class="logo">SIDOU <b>PDF</b></div><button class="btn lang" id="lang" aria-label="Language">العربية</button></header>
+<main>
+<h1 id="h1"></h1><p id="sub"></p>
+<nav role="tablist" id="tabs"></nav>
+<section class="card"><div id="tool"></div><div id="msg" role="status" aria-live="polite"></div></section>
+</main>
+<footer id="foot"></footer>
+<script>
+// Every user-facing string lives here, in English and Arabic
+const TEXT={en:{dir:'ltr',lbl:'العربية',h1:'Free file tools. No account. No ads.',sub:'Convert and combine PDFs and images right in your browser.',
+ imagesToPdf:'Images → PDF',mergePdf:'Merge PDFs',pdfToImages:'PDF → Images',drop:'Tap to choose files, or drop them here',up:'Up',dn:'Down',rm:'Remove',clr:'Clear',
+ size:'Page size',fit:'Fit to image',orient:'Orientation',auto:'Auto',por:'Portrait',lan:'Landscape',mar:'Margin (pt)',qual:'JPEG quality',
+ go:'Convert',go2:'Merge',go3:'Export',fmt:'Format',scale:'Resolution (×)',range:'Pages (e.g. 1-3,5; empty = all)',zip:'Download ZIP',
+ work:'Working…',bad:'Cannot read file: ',none:'Add at least one file first.',noTwo:'Add at least two PDFs.',pages:'pages',
+ doneImages:'PDF created: {p} page(s), {s}.',doneMerge:'Merged PDF created: {p} page(s), {s}.',doneImagesCount:'{n} image(s) exported.',dl:'Download',
+ badRange:'Invalid page range.',enc:'Encrypted or unreadable PDF: ',
+ foot:'Privacy: all processing happens on your device; files are not uploaded. Libraries load from a CDN, so an internet connection is needed to open the page. Large files may exceed your device memory.'},
+ar:{dir:'rtl',lbl:'English',h1:'أدوات ملفات مجانية. بدون حساب. بدون إعلانات.',sub:'حوّل ودمج ملفات PDF والصور مباشرة في متصفحك.',
+ imagesToPdf:'صور ← PDF',mergePdf:'دمج PDF',pdfToImages:'PDF ← صور',drop:'اضغط لاختيار الملفات أو أسقطها هنا',up:'أعلى',dn:'أسفل',rm:'حذف',clr:'مسح الكل',
+ size:'حجم الصفحة',fit:'مطابق للصورة',orient:'الاتجاه',auto:'تلقائي',por:'عمودي',lan:'أفقي',mar:'الهامش (نقطة)',qual:'جودة JPEG',
+ go:'تحويل',go2:'دمج',go3:'تصدير',fmt:'الصيغة',scale:'الدقة (×)',range:'الصفحات (مثل 1-3,5؛ فارغ = الكل)',zip:'تنزيل ZIP',
+ work:'جارٍ المعالجة…',bad:'تعذّر قراءة الملف: ',none:'أضف ملفًا واحدًا على الأقل.',noTwo:'أضف ملفي PDF على الأقل.',pages:'صفحات',
+ doneImages:'تم إنشاء PDF: {p} صفحة، {s}.',doneMerge:'تم إنشاء PDF المدموج: {p} صفحة، {s}.',doneImagesCount:'تم تصدير {n} صورة.',dl:'تنزيل',
+ badRange:'نطاق الصفحات غير صالح.',enc:'ملف PDF مشفّر أو غير قابل للقراءة: ',
+ foot:'الخصوصية: تتم المعالجة على جهازك ولا يتم رفع الملفات. تُحمَّل المكتبات من CDN لذا يلزم اتصال بالإنترنت لفتح الصفحة. قد تتجاوز الملفات الكبيرة ذاكرة جهازك.'}};
+
+// ---------- State ----------
+let language = 'en';
+try { language = localStorage.getItem('sidou-lang') || 'en'; } catch (e) { /* storage can be blocked */ }
+let currentTool = 'imagesToPdf';
+let selectedFiles = [];   // items: { file, previewUrl, kind, pageCount }
+let isBusy = false;       // blocks double clicks while a conversion runs
+let resultUrls = [];      // object URLs for downloads; revoked when no longer needed
+
+// ---------- Small helpers ----------
+const byId = id => document.getElementById(id);
+const text = key => TEXT[language][key];
+
+function formatSize(bytes) {
+  return bytes > 1048576 ? (bytes / 1048576).toFixed(2) + ' MB' : (bytes / 1024).toFixed(1) + ' KB';
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function showMessage(message, type) {
+  byId('msg').textContent = message;
+  byId('msg').className = type || '';
+}
+function createDownloadUrl(blob) {
+  const url = URL.createObjectURL(blob);
+  resultUrls.push(url);
+  return url;
+}
+function revokeResultUrls() {
+  resultUrls.forEach(url => URL.revokeObjectURL(url));
+  resultUrls = [];
+}
+function revokePreviewUrls() {
+  selectedFiles.forEach(item => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
+}
+function appendDownloadButton(blob, fileName, label) {
+  const url = createDownloadUrl(blob);
+  byId('msg').insertAdjacentHTML('beforeend',
+    `<br><br><a class="btn" style="display:inline-block;text-decoration:none;line-height:28px" href="${url}" download="${escapeHtml(fileName)}">${label} (${formatSize(blob.size)})</a>`);
+}
+// Replaces {placeholders} in a translated message
+function fillTemplate(template, values) {
+  return template.replace(/\{(\w)\}/g, (_, name) => values[name]);
+}
+
+// ---------- Page rendering ----------
+function setLanguage(newLanguage) {
+  language = newLanguage;
+  try { localStorage.setItem('sidou-lang', language); } catch (e) { /* ignore */ }
+  document.documentElement.lang = language;
+  document.documentElement.dir = text('dir');   // switches RTL/LTR for the whole page
+  byId('lang').textContent = text('lbl');
+  byId('h1').textContent = text('h1');
+  byId('sub').textContent = text('sub');
+  byId('foot').textContent = text('foot');
+  renderTabs();
+  renderTool();   // selected files are kept, so changing language never loses work
+}
+
+function renderTabs() {
+  const tools = ['imagesToPdf', 'mergePdf', 'pdfToImages'];
+  byId('tabs').innerHTML = tools.map(tool =>
+    `<button class="btn sec" role="tab" aria-selected="${tool === currentTool}" data-tool="${tool}">${text(tool)}</button>`).join('');
+  byId('tabs').querySelectorAll('button').forEach(button => {
+    button.onclick = () => selectTool(button.dataset.tool);
+  });
+}
+
+function selectTool(tool) {
+  if (isBusy) return;
+  currentTool = tool;
+  clearFiles();
+  renderTabs();
+}
+
+function clearFiles() {
+  if (isBusy) return;
+  revokePreviewUrls();
+  selectedFiles = [];
+  revokeResultUrls();
+  showMessage('');
+  renderTool();
+}
+
+function optionsHtml() {
+  if (currentTool === 'imagesToPdf') {
+    return `<label>${text('size')}<select id="page-size"><option>A4</option><option>Letter</option><option value="fit">${text('fit')}</option></select></label>
+<label>${text('orient')}<select id="orientation"><option value="auto">${text('auto')}</option><option value="portrait">${text('por')}</option><option value="landscape">${text('lan')}</option></select></label>
+<label>${text('mar')}<input type="number" id="margin" value="20" min="0" max="200"></label>
+<label>${text('qual')}<input type="number" id="quality" value="92" min="30" max="100"></label>`;
+  }
+  if (currentTool === 'pdfToImages') {
+    return `<label>${text('fmt')}<select id="format"><option>PNG</option><option>JPEG</option></select></label>
+<label>${text('scale')}<input type="number" id="scale" value="2" min="0.5" max="4" step="0.5"></label>
+<label>${text('range')}<input type="text" id="range"></label>`;
+  }
+  return '';   // merging has no options
+}
+
+function renderTool() {
+  const accept = currentTool === 'imagesToPdf' ? 'image/jpeg,image/png,image/webp' : 'application/pdf';
+  const allowMultiple = currentTool !== 'pdfToImages';
+  const actionLabel = { imagesToPdf: 'go', mergePdf: 'go2', pdfToImages: 'go3' }[currentTool];
+  byId('tool').innerHTML = `
+    <div class="drop" id="drop" tabindex="0" role="button">${text('drop')}</div>
+    <input id="file-input" type="file" ${allowMultiple ? 'multiple' : ''} accept="${accept}" hidden>
+    <ul id="list"></ul>
+    <div class="row">${optionsHtml()}</div>
+    <div class="row">
+      <button class="btn" id="go">${text(actionLabel)}</button>
+      <button class="btn sec" id="clear">${text('clr')}</button>
+    </div>
+    <div class="res" id="res"></div>`;
+
+  const input = byId('file-input');
+  const dropZone = byId('drop');
+  dropZone.onclick = () => input.click();
+  dropZone.onkeydown = event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); input.click(); }
+  };
+  input.onchange = () => { addFiles([...input.files]); input.value = ''; };
+  dropZone.ondragover = event => { event.preventDefault(); dropZone.classList.add('over'); };
+  dropZone.ondragleave = () => dropZone.classList.remove('over');
+  dropZone.ondrop = event => {
+    event.preventDefault();
+    dropZone.classList.remove('over');
+    addFiles([...event.dataTransfer.files]);
+  };
+  byId('clear').onclick = clearFiles;
+  byId('go').onclick = runConversion;
+  renderFileList();
+}
+
+function renderFileList() {
+  const list = byId('list');
+  list.innerHTML = '';
+  selectedFiles.forEach((item, index) => {
+    const row = document.createElement('li');
+    const pages = item.pageCount ? ` · ${item.pageCount} ${text('pages')}` : '';
+    row.innerHTML = `${item.previewUrl ? `<img src="${item.previewUrl}" alt="">` : ''}
+      <div class="n">${escapeHtml(item.file.name)}<small>${formatSize(item.file.size)}${pages}</small></div>
+      <button class="btn sec" data-action="up" aria-label="${text('up')}">↑</button>
+      <button class="btn sec" data-action="down" aria-label="${text('dn')}">↓</button>
+      <button class="btn sec" data-action="remove" aria-label="${text('rm')}">✕</button>`;
+    row.querySelectorAll('button').forEach(button => {
+      button.onclick = () => changeFileList(index, button.dataset.action);
+    });
+    list.appendChild(row);
+  });
+  byId('go').disabled = selectedFiles.length === 0;
+}
+
+function changeFileList(index, action) {
+  if (isBusy) return;
+  if (action === 'remove') {
+    const [removed] = selectedFiles.splice(index, 1);
+    if (removed.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+  } else {
+    const otherIndex = action === 'up' ? index - 1 : index + 1;
+    if (otherIndex < 0 || otherIndex >= selectedFiles.length) return;
+    [selectedFiles[index], selectedFiles[otherIndex]] = [selectedFiles[otherIndex], selectedFiles[index]];
+  }
+  renderFileList();
+}
+
+// ---------- File validation ----------
+// We check the real file header (magic bytes), because names and MIME types can be wrong.
+function detectImageKind(bytes) {
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8) return 'jpeg';
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) return 'png';
+  if (String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP') return 'webp';
+  return null;
+}
+function looksLikePdf(bytes) {
+  return String.fromCharCode(...bytes.slice(0, 5)) === '%PDF-';
+}
+
+async function validateFile(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (currentTool === 'imagesToPdf') {
+    const kind = detectImageKind(bytes);
+    if (!kind) throw new Error(text('bad') + file.name);
+    return { file, kind, previewUrl: URL.createObjectURL(file) };
+  }
+  if (!looksLikePdf(bytes)) throw new Error(text('bad') + file.name);
+  return { file, pageCount: await countPdfPages(bytes, file.name) };
+}
+
+async function countPdfPages(bytes, fileName) {
+  try {
+    return (await PDFLib.PDFDocument.load(bytes)).getPageCount();
+  } catch (error) {
+    // pdf-lib refuses encrypted files. Merging needs pdf-lib, so reject; rendering only needs pdf.js.
+    if (currentTool === 'mergePdf') throw new Error(text('enc') + fileName);
+    try {
+      return (await pdfjsLib.getDocument({ data: bytes.slice() }).promise).numPages;
+    } catch (error2) {
+      throw new Error(text('enc') + fileName);
+    }
+  }
+}
+
+async function addFiles(newFiles) {
+  showMessage('');
+  if (currentTool === 'pdfToImages') {   // this tool handles one PDF at a time
+    revokePreviewUrls();
+    selectedFiles = [];
+    newFiles = newFiles.slice(0, 1);
+  }
+  for (const file of newFiles) {
+    try {
+      selectedFiles.push(await validateFile(file));
+    } catch (error) {
+      showMessage(error.message, 'err');
+    }
+  }
+  renderFileList();
+}
+
+// ---------- Running a conversion ----------
+async function runConversion() {
+  if (isBusy) return;
+  if (selectedFiles.length === 0) return showMessage(text('none'), 'err');
+  if (currentTool === 'mergePdf' && selectedFiles.length < 2) return showMessage(text('noTwo'), 'err');
+
+  isBusy = true;
+  byId('go').disabled = true;
+  revokeResultUrls();
+  byId('res').innerHTML = '';
+  showMessage(text('work'));
+  try {
+    if (currentTool === 'imagesToPdf') await convertImagesToPdf();
+    else if (currentTool === 'mergePdf') await mergePdfFiles();
+    else await convertPdfToImages();
+  } catch (error) {
+    showMessage(error.message || String(error), 'err');
+  } finally {
+    isBusy = false;
+    byId('go').disabled = selectedFiles.length === 0;
+  }
+}
+
+function showPdfResult(pdfBytes, fileName, messageKey, pageCount) {
+  const message = fillTemplate(text(messageKey), { p: pageCount, s: formatSize(pdfBytes.length) });
+  showMessage(message, 'ok');
+  appendDownloadButton(new Blob([pdfBytes], { type: 'application/pdf' }), fileName, text('dl'));
+}
+
+// ---------- Images -> PDF ----------
+function getPageSize(sizeName) {
+  return sizeName === 'Letter' ? [612, 792] : [595.28, 841.89];   // PDF points
+}
+
+async function embedImage(pdfDoc, item, jpegQuality) {
+  if (item.kind === 'png') {   // PNG is embedded as-is to keep transparency
+    return pdfDoc.embedPng(new Uint8Array(await item.file.arrayBuffer()));
+  }
+  // JPEG/WebP: draw on a canvas first. createImageBitmap applies EXIF rotation, which pdf-lib would ignore.
+  const bitmap = await createImageBitmap(item.file);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';   // JPEG has no transparency
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const jpegBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', jpegQuality));
+  return pdfDoc.embedJpg(new Uint8Array(await jpegBlob.arrayBuffer()));
+}
+
+async function convertImagesToPdf() {
+  const pageSizeName = byId('page-size').value;
+  const orientation = byId('orientation').value;
+  const margin = +byId('margin').value || 0;
+  const jpegQuality = (+byId('quality').value || 92) / 100;
+  const pdfDoc = await PDFLib.PDFDocument.create();
+
+  for (const item of selectedFiles) {   // same order as the list on screen
+    const image = await embedImage(pdfDoc, item, jpegQuality);
+    let pageWidth, pageHeight;
+    if (pageSizeName === 'fit') {
+      pageWidth = image.width + 2 * margin;
+      pageHeight = image.height + 2 * margin;
+    } else {
+      [pageWidth, pageHeight] = getPageSize(pageSizeName);
+      const useLandscape = orientation === 'landscape' || (orientation === 'auto' && image.width > image.height);
+      if (useLandscape) [pageWidth, pageHeight] = [pageHeight, pageWidth];
+    }
+    // Scale to fit inside the margins without stretching, then center
+    const scale = Math.min((pageWidth - 2 * margin) / image.width, (pageHeight - 2 * margin) / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    pdfDoc.addPage([pageWidth, pageHeight]).drawImage(image, {
+      x: (pageWidth - drawWidth) / 2, y: (pageHeight - drawHeight) / 2, width: drawWidth, height: drawHeight,
+    });
+  }
+  showPdfResult(await pdfDoc.save(), 'images.pdf', 'doneImages', pdfDoc.getPageCount());
+}
+
+// ---------- Merge PDFs ----------
+async function mergePdfFiles() {
+  const mergedDoc = await PDFLib.PDFDocument.create();
+  for (const item of selectedFiles) {
+    let sourceDoc;
+    try {
+      sourceDoc = await PDFLib.PDFDocument.load(new Uint8Array(await item.file.arrayBuffer()));
+    } catch (error) {
+      throw new Error(text('enc') + item.file.name);   // never skip a file silently
+    }
+    const pages = await mergedDoc.copyPages(sourceDoc, sourceDoc.getPageIndices());
+    pages.forEach(page => mergedDoc.addPage(page));
+  }
+  showPdfResult(await mergedDoc.save(), 'merged.pdf', 'doneMerge', mergedDoc.getPageCount());
+}
+
+// ---------- PDF -> Images ----------
+// "1-3,5" -> [1,2,3,5]; an empty text means all pages
+function parsePageRange(rangeText, totalPages) {
+  if (!rangeText.trim()) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const pageNumbers = new Set();
+  for (const part of rangeText.split(',')) {
+    const match = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+    if (!match) throw new Error(text('badRange'));
+    const first = +match[1];
+    const last = +(match[2] || match[1]);
+    if (first < 1 || last < first || last > totalPages) throw new Error(text('badRange'));
+    for (let page = first; page <= last; page++) pageNumbers.add(page);
+  }
+  return [...pageNumbers].sort((a, b) => a - b);
+}
+
+async function renderPdfPage(pdf, pageNumber, scale, mimeType) {
+  const page = await pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: context, viewport }).promise;
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, mimeType, 0.92));
+  canvas.width = canvas.height = 0;   // frees canvas memory (important on phones)
+  if (!blob) throw new Error('Page ' + pageNumber + ' failed');
+  return blob;
+}
+
+async function convertPdfToImages() {
+  const file = selectedFiles[0].file;
+  const isPng = byId('format').value === 'PNG';
+  const mimeType = isPng ? 'image/png' : 'image/jpeg';
+  const extension = isPng ? 'png' : 'jpg';
+  const scale = +byId('scale').value || 2;
+
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  } catch (error) {
+    throw new Error(text('enc') + file.name);
+  }
+  const pageNumbers = parsePageRange(byId('range').value, pdf.numPages);
+  const baseName = file.name.replace(/\.pdf$/i, '').replace(/[^\w\u0600-\u06FF.-]+/g, '_');   // safe name, keeps Arabic
+  const zip = new JSZip();
+  const results = byId('res');
+  results.innerHTML = '';
+
+  for (const pageNumber of pageNumbers) {
+    const blob = await renderPdfPage(pdf, pageNumber, scale, mimeType);
+    const imageName = `${baseName}-${pageNumber}.${extension}`;
+    zip.file(imageName, blob);
+    const url = createDownloadUrl(blob);
+    results.insertAdjacentHTML('beforeend',
+      `<a href="${url}" download="${imageName}"><img src="${url}" alt="${pageNumber}">${text('dl')} ${pageNumber}</a>`);
+  }
+  showMessage(fillTemplate(text('doneImagesCount'), { n: pageNumbers.length }), 'ok');
+  if (pageNumbers.length > 1) {
+    appendDownloadButton(await zip.generateAsync({ type: 'blob' }), baseName + '.zip', text('zip'));
+  }
+}
+
+// ---------- Start ----------
+byId('lang').onclick = () => setLanguage(language === 'en' ? 'ar' : 'en');
+setLanguage(language);
+</script></body></html>
